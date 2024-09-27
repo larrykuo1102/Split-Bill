@@ -67,9 +67,9 @@ function ExpenseDetails() {
   }
 
   return (
-    <div className="card">
+    <div className="card shadow">
       <div className="card-body">
-        <h2 className="card-title mb-4">支出詳情 (ID: {id})</h2>
+        <h2 className="card-title mb-4 text-success">支出詳情 (ID: {id})</h2>
         {isEditing ? (
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
@@ -148,8 +148,8 @@ function ExpenseDetails() {
                 </div>
               ))}
             </div>
-            <button type="submit" className="btn btn-primary">保存更改</button>
-            <button type="button" className="btn btn-secondary ml-2" onClick={() => setIsEditing(false)}>取消</button>
+            <button type="submit" className="btn btn-primary mt-3">保存更改</button>
+            <button type="button" className="btn btn-secondary mt-3 ms-2" onClick={() => setIsEditing(false)}>取消</button>
           </form>
         ) : (
           <div className="row">
@@ -165,7 +165,7 @@ function ExpenseDetails() {
               <p className="card-text"><strong>每人應付:</strong> ${(expense.amount / expense.paidFor.length).toFixed(2)}</p>
             </div>
             <div className="col-12 mt-3">
-              <button className="btn btn-primary mr-2" onClick={() => setIsEditing(true)}>編輯</button>
+              <button className="btn btn-primary me-2" onClick={() => setIsEditing(true)}>編輯</button>
               <Link to="/home" className="btn btn-secondary">返回首頁</Link>
             </div>
           </div>

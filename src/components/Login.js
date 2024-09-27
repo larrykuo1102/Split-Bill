@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { login, register } from '../services/api';
 
-function Login() {
+function Login({ setCurrentUser }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -25,6 +25,8 @@ function Login() {
       
       if (response.data.access_token) {
         localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('username', username);
+        setCurrentUser(username);
         history.push('/home');
       } else {
         alert(isRegistering ? '註冊失敗' : '登入失敗，請檢查您的用戶名和密碼。');
@@ -37,15 +39,15 @@ function Login() {
 
   return (
     <div className="row justify-content-center">
-      <div className="col-md-6">
-        <div className="card">
-          <div className="card-body">
-            <h2 className="card-title text-center mb-4">{isRegistering ? '註冊' : '登入'}</h2>
+      <div className="col-md-6 col-lg-4">
+        <div className="card shadow">
+          <div className="card-body p-5">
+            <h2 className="card-title text-center mb-4 text-success">{isRegistering ? '註冊' : '登入'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <input
                   type="text"
-                  className="form-control"
+                  className="form-control form-control-lg"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="用戶名"
@@ -55,14 +57,14 @@ function Login() {
               <div className="mb-3">
                 <input
                   type="password"
-                  className="form-control"
+                  className="form-control form-control-lg"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="密碼"
                   required
                 />
               </div>
-              <button type="submit" className="btn btn-primary w-100">{isRegistering ? '註冊' : '登入'}</button>
+              <button type="submit" className="btn btn-primary btn-lg w-100">{isRegistering ? '註冊' : '登入'}</button>
             </form>
             <button 
               className="btn btn-link w-100 mt-3"
