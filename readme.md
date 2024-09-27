@@ -1,69 +1,70 @@
 # Expense Splitter Web App
 
-這是一個用於分攤費用的 Web 應用程序，適用於朋友出遊或共同生活時的費用分攤。
+This is a web application for splitting expenses, ideal for friends traveling together or sharing living costs.
 
-## 功能
+## Features
 
-### 前端 (React)
+### Frontend (React)
 
-1. 用戶註冊和登入
-   - 新用戶可以註冊帳號
-   - 已有帳號的用戶可以登入
+1. User Registration and Login
+   - New users can register an account
+   - Existing users can log in
 
-2. 支出管理
-   - 新增支出：記錄品項名稱、金額、付款人和分攤者
-   - 查看所有支出：以表格形式顯示所有支出記錄
-   - 編輯支出：可以直接在表格中修改支出詳情
-   - 支出詳情：查看每筆支出的詳細信息，包括每人應付金額
+2. Expense Management
+   - Add Expense: Record item name, amount, payer, and participants
+   - View All Expenses: Display all expense records in a table format
+   - Edit Expense: Modify expense details directly in the table
+   - Expense Details: View detailed information for each expense, including the amount owed by each person
 
-3. 結算
-   - 查看總收支情況：顯示每個用戶的收支餘額
-   - 查看詳細結算計劃：顯示最優的轉賬方案，以最小化交易次數
+3. Settlement
+   - View Total Balance: Display the balance for each user
+   - View Detailed Settlement Plan: Show the optimal transfer plan to minimize the number of transactions
 
-### 後端 (FastAPI)
+### Backend (FastAPI)
 
-1. 用戶管理
-   - 用戶註冊 API
-   - 用戶登入和 Token 生成 API
+1. User Management
+   - User Registration API
+   - User Login and Token Generation API
 
-2. 支出管理
-   - 新增支出 API
-   - 獲取所有支出 API
-   - 獲取特定支出詳情 API
-   - 更新支出 API
+2. Expense Management
+   - Add Expense API
+   - Get All Expenses API
+   - Get Specific Expense Details API
+   - Update Expense API
 
-3. 結算
-   - 獲取結算信息 API：計算每個用戶的淨欠款和最優轉賬方案
+3. Settlement
+   - Get Settlement Information API: Calculate net debt for each user and optimal transfer plan
 
-4. 其他
-   - 獲取用戶列表 API
-   - CORS 中間件：允許前端跨域請求
+4. Others
+   - Get User List API
+   - CORS Middleware: Allow cross-origin requests from the frontend
 
-## 技術棧
+## Tech Stack
 
-- 前端：React, JavaScript, Bootstrap
-- 後端：Python, FastAPI
-- 數據庫：SQLite（通過 SQLAlchemy ORM）
-- 認證：JWT (JSON Web Tokens)
+- Frontend: React, JavaScript, Bootstrap
+- Backend: Python, FastAPI
+- Database: SQLite (via SQLAlchemy ORM)
+- Authentication: JWT (JSON Web Tokens)
 
-## 待實現功能
+## Planned Features
 
-- 支出分類和過濾
-- 圖表統計
-- 多語言支持
-- 移動端適配優化
+- Expense categorization and filtering
+- Statistical charts
+- Multi-language support
+- Mobile responsiveness optimization
+- Project-based expense tracking and settlement
 
-## 如何運行
+## How to Run
 
-1. 後端：
+1. Backend:
    ```uvicorn main:app --reload```
 
-2. 前端：
+2. Frontend:
    ```npm start```
 
-請確保已安裝所有必要的依賴項。
+Make sure all necessary dependencies are installed.
 
-## 注意事項
+## Notes
 
-- 本應用目前處於開發階段，請勿在生產環境中使用。
-- 請確保在使用前更改 JWT 密鑰和其他敏感設置。
+- This application is currently in the development stage. Do not use in a production environment.
+- Please ensure to change the JWT secret key and other sensitive settings before use.

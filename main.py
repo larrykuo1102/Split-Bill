@@ -78,6 +78,7 @@ class TokenData(BaseModel):
 
 class Expense(BaseModel):
     id: Optional[int] = None
+    project_id: int
     date: date
     category: str
     item: str
@@ -163,17 +164,22 @@ async def add_expense(expense: Expense, current_user: User = Depends(get_current
 
 # 獲取所有支出
 @app.get("/expenses")
-async def get_expenses(current_user: User = Depends(get_current_user)):
+async def get_expenses(project_id: Optional[int] = None, current_user: User = Depends(get_current_user)):
+    if project_id:
+        return [Expense(**expense) for expense in expenses_db if expense['project_id'] == project_id]
     return [Expense(**expense) for expense in expenses_db]
 
 # 獲取結算信息
-@app.get("/settlement")
-async def get_settlement(current_user: User = Depends(get_current_user)):
+@app.get("/settlement/{project_id}")
+async def get_settlement(project_id: int, current_user: User = Depends(get_current_user)):
+    # 獲取特定 project 的支出
+    project_expenses = [expense for expense in expenses_db if expense['project_id'] == project_id]
+    
     # 創建一個字典來跟踪每個用戶的淨欠款
     balances = defaultdict(float)
 
     # 計算每個用戶的淨欠款
-    for expense in expenses_db:
+    for expense in project_expenses:
         payer = expense['paidBy']
         amount = expense['amount']
         participants = expense['paidFor']
@@ -253,6 +259,33 @@ async def update_expense(expense_id: int, updated_expense: Expense, current_user
             expenses_db[index] = updated_dict
             return {"message": "Expense updated successfully", "expense": updated_dict}
     raise HTTPException(status_code=404, detail="Expense not found")
+
+# Project model and API endpoints
+class Project(BaseModel):
+    id: Optional[int] = None
+    name: str
+    date: date
+    description: Optional[str] = None
+
+projects_db = []
+
+@app.post("/projects")
+async def create_project(project: Project, current_user: User = Depends(get_current_user)):
+    new_project = project.dict()
+    new_project['id'] = len(projects_db) + 1
+    projects_db.append(new_project)
+    return {"message": "Project created successfully", "project": new_project}
+
+@app.get("/projects")
+async def get_projects(current_user: User = Depends(get_current_user)):
+    return projects_db
+
+@app.get("/projects/{project_id}")
+async def get_project(project_id: int, current_user: User = Depends(get_current_user)):
+    project = next((p for p in projects_db if p['id'] == project_id), None)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 if __name__ == "__main__":
     import uvicorn

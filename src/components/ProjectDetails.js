@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
-import { getExpenses, addExpense, getUsers, updateExpense, getProject } from '../services/api';
+import { useParams, useHistory } from 'react-router-dom';
+import { getProject, getExpenses, getUsers, addExpense, updateExpense } from '../services/api';
 
-function Home() {
+function ProjectDetails() {
   const { id: projectId } = useParams();
   const history = useHistory();
+  const [project, setProject] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [users, setUsers] = useState([]);
   const [newExpense, setNewExpense] = useState({
@@ -16,7 +17,6 @@ function Home() {
     category: 'General'
   });
   const [editingId, setEditingId] = useState(null);
-  const [project, setProject] = useState(null);
 
   useEffect(() => {
     fetchProject();
@@ -100,13 +100,11 @@ function Home() {
   };
 
   const handleEdit = (id) => {
-    console.log('Editing expense with id:', id);
     setEditingId(id);
   };
 
   const handleSave = async (id) => {
     try {
-      console.log('Saving expense with id:', id);
       const expenseToUpdate = expenses.find(exp => exp.id === id);
       if (!expenseToUpdate) {
         throw new Error('Expense not found');
@@ -124,9 +122,11 @@ function Home() {
     history.push(`/settlement/${projectId}`);
   };
 
+  if (!project) return <div>Loading...</div>;
+
   return (
     <div className="row">
-      {project && <h2>{project.name} - {project.date}</h2>}
+      <h2>{project.name} - {project.date}</h2>
       <div className="col-lg-4 mb-4">
         <div className="card shadow">
           <div className="card-body">
@@ -272,16 +272,16 @@ function Home() {
                       <td>
                         {editingId === expense.id ? (
                           users.map(user => (
-                            <div key={`edit-expense-${expense.id}-${user}`} className="form-check">
+                            <div key={`expense-${expense.id}-${user}`} className="form-check">
                               <input
                                 type="checkbox"
                                 className="form-check-input"
-                                id={`edit-expense-${expense.id}-user-${user}`}
+                                id={`expense-${expense.id}-user-${user}`}
                                 value={user}
                                 checked={expense.paidFor.includes(user)}
                                 onChange={(e) => handleCheckboxChange(e, expense.id)}
                               />
-                              <label className="form-check-label" htmlFor={`edit-expense-${expense.id}-user-${user}`}>
+                              <label className="form-check-label" htmlFor={`expense-${expense.id}-user-${user}`}>
                                 {user}
                               </label>
                             </div>
@@ -312,4 +312,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default ProjectDetails;

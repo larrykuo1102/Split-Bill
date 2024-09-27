@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { login, register } from '../services/api';
 
-function Login({ setCurrentUser }) {
+function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const history = useHistory();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      history.push('/projects');
+    }
+  }, [history]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,8 +33,7 @@ function Login({ setCurrentUser }) {
       if (response.data.access_token) {
         localStorage.setItem('token', response.data.access_token);
         localStorage.setItem('username', username);
-        setCurrentUser(username);
-        history.push('/home');
+        history.push('/projects');
       } else {
         alert(isRegistering ? '註冊失敗' : '登入失敗，請檢查您的用戶名和密碼。');
       }
