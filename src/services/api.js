@@ -9,34 +9,47 @@ const api = axios.create({
   },
 });
 
+// 設置請求攔截器來添加 token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
-export const login = (username, password) => 
-  api.post('/token', new URLSearchParams({ username, password }), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+export const register = (username, password) => api.post('/users/', { username, password });
+export const login = (username, password) => {
+  const formData = new FormData();
+  formData.append('username', username);
+  formData.append('password', password);
+  return api.post('/token', formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
   });
+};
 
-export const register = (username, password) => 
-  api.post('/register', { username, password });
+export const createProject = (projectData) => api.post('/projects/', projectData);
+export const getProjects = () => api.get('/projects/');
+export const getProject = (projectId) => api.get(`/projects/${projectId}`);
+export const joinProject = (projectId, inviteCode) => api.post(`/projects/${projectId}/join`, { invite_code: inviteCode });
+export const createInviteCode = (projectId) => api.post(`/projects/${projectId}/invite`);
+export const getUserProjects = () => api.get('/users/projects');
 
-export const getExpenses = (projectId) => api.get('/expenses', { params: { project_id: projectId } });
+export const addFriend = (friendId) => api.post('/users/friends', { friend_id: friendId });
+export const getFriends = () => api.get('/users/friends');
 
-export const addExpense = (expense) => api.post('/expenses', expense);
-export const getExpenseDetails = (id) => api.get(`/expenses/${id}`);
-export const getSettlement = (projectId) => api.get(`/settlement/${projectId}`);
+export const addExpense = (expenseData) => api.post('/expenses/', expenseData);
+export const updateExpense = (expenseId, expenseData) => api.put(`/expenses/${expenseId}`, expenseData);
+export const getExpenses = (projectId) => api.get(`/expenses/?project_id=${projectId}`);
+export const getExpenseDetails = (expenseId) => api.get(`/expenses/${expenseId}`);
 
-export const getUsers = () => api.get('/users');
+// 添加 getUsers 函數的導出
+export const getUsers = () => api.get('/users/');
 
-export const updateExpense = (id, expense) => api.put(`/expenses/${id}`, expense);
-
-export const createProject = (project) => api.post('/projects', project);
-export const getProjects = () => api.get('/projects');
-export const getProject = (id) => api.get(`/projects/${id}`);
+export const getSettlement = (projectId) => api.get(`/projects/${projectId}/settlement`);
 
 export default api;

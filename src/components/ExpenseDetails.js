@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useHistory } from 'react-router-dom';
-import { getExpenseDetails, updateExpense, getUsers } from '../services/api';
+import { useParams, useHistory, Link } from 'react-router-dom';
+import { getExpenseDetails, getUsers, updateExpense } from '../services/api';
 
 function ExpenseDetails() {
   const [expense, setExpense] = useState(null);

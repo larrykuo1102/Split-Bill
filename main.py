@@ -10,6 +10,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta, date
 import jwt
 from passlib.context import CryptContext
+import uuid
 
 app = FastAPI(
     title="Expense Splitter API",
@@ -43,30 +44,37 @@ Base = declarative_base()
 # 數據庫模型
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    name = Column(String, index=True)
+    date = Column(String)
 
 class Expense(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True, index=True)
-    payer = Column(String, index=True)
+    project_id = Column(String, ForeignKey('projects.id'))
+    date = Column(String)
+    category = Column(String)
+    item = Column(String)
     amount = Column(Float)
-    description = Column(String)
-    participants = Column(String)  # 存儲為逗號分隔的字符串
+    paid_by = Column(String)
+    paid_for = Column(String)  # 存儲為逗號分隔的字符串
 
 Base.metadata.create_all(bind=engine)
 
-# 模擬數據庫
-users_db = {}
-expenses_db = []
-
-# 模型定義
-class User(BaseModel):
+# Pydantic 模型
+class UserCreate(BaseModel):
     username: str
     password: str
 
-class UserInDB(User):
+class UserInDB(BaseModel):
+    id: str
+    username: str
     hashed_password: str
 
 class Token(BaseModel):
@@ -76,28 +84,58 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-class Expense(BaseModel):
-    id: Optional[int] = None
-    project_id: int
-    date: date
+class ProjectCreate(BaseModel):
+    name: str
+    date: str
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    date: str
+
+class ExpenseCreate(BaseModel):
+    project_id: str
+    date: str
     category: str
     item: str
     amount: float
-    paidBy: str
-    paidFor: List[str]
+    paid_by: str
+    paid_for: List[str]
+
+class ExpenseResponse(BaseModel):
+    id: int
+    project_id: str
+    date: str
+    category: str
+    item: str
+    amount: float
+    paid_by: str
+    paid_for: List[str]
+
+# 依賴項
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # 用戶註冊
-@app.post("/register")
-async def register(user: User):
-    if user.username in users_db:
+@app.post("/users/", response_model=UserInDB)
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = get_user_by_username(db, username=user.username)
+    if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = pwd_context.hash(user.password)
-    users_db[user.username] = UserInDB(**user.dict(), hashed_password=hashed_password)
-    return {"message": "User registered successfully"}
+    db_user = User(username=user.username, hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return UserInDB(id=db_user.id, username=db_user.username, hashed_password=db_user.hashed_password)
 
 # 驗證用戶
-def authenticate_user(username: str, password: str):
-    user = users_db.get(username)
+def authenticate_user(db: Session, username: str, password: str):
+    user = get_user_by_username(db, username)
     if not user:
         return False
     if not pwd_context.verify(password, user.hashed_password):
@@ -117,8 +155,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 # 登入並獲取令牌
 @app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -135,7 +173,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # 獲取當前用戶
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -149,61 +187,96 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username)
     except jwt.PyJWTError:
         raise credentials_exception
-    user = users_db.get(token_data.username)
+    user = get_user_by_username(db, username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
 
-# 添加支出
-@app.post("/expenses")
-async def add_expense(expense: Expense, current_user: User = Depends(get_current_user)):
-    new_expense = expense.dict()
-    new_expense['id'] = len(expenses_db) + 1  # 簡單的 id 生成方式
-    expenses_db.append(new_expense)
-    return {"message": "Expense added successfully", "expense": new_expense}
+# 創建項目
+@app.post("/projects/", response_model=ProjectResponse)
+async def create_project(project: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_project = Project(**project.dict())
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    return ProjectResponse(**db_project.__dict__)
 
-# 獲取所有支出
-@app.get("/expenses")
-async def get_expenses(project_id: Optional[int] = None, current_user: User = Depends(get_current_user)):
+# 獲取項目列表
+@app.get("/projects/", response_model=List[ProjectResponse])
+async def get_projects(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    projects = db.query(Project).all()
+    return [ProjectResponse(**project.__dict__) for project in projects]
+
+# 獲取特定項目
+@app.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project(project_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return ProjectResponse(**project.__dict__)
+
+# 添加支出
+@app.post("/expenses/", response_model=ExpenseResponse)
+async def add_expense(expense: ExpenseCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_expense = Expense(**expense.dict(exclude={'paid_for'}), paid_for=','.join(expense.paid_for))
+    db.add(db_expense)
+    db.commit()
+    db.refresh(db_expense)
+    return ExpenseResponse(**db_expense.__dict__, paid_for=db_expense.paid_for.split(','))
+
+# 獲取支出列表
+@app.get("/expenses/", response_model=List[ExpenseResponse])
+async def get_expenses(project_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(Expense)
     if project_id:
-        return [Expense(**expense) for expense in expenses_db if expense['project_id'] == project_id]
-    return [Expense(**expense) for expense in expenses_db]
+        query = query.filter(Expense.project_id == project_id)
+    expenses = query.all()
+    return [ExpenseResponse(**expense.__dict__, paid_for=expense.paid_for.split(',')) for expense in expenses]
+
+# 獲取特定支出
+@app.get("/expenses/{expense_id}", response_model=ExpenseResponse)
+async def get_expense_details(expense_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if expense is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return ExpenseResponse(**expense.__dict__, paid_for=expense.paid_for.split(','))
+
+# 更新支出
+@app.put("/expenses/{expense_id}", response_model=ExpenseResponse)
+async def update_expense(expense_id: int, expense: ExpenseCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if db_expense is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    for key, value in expense.dict(exclude={'paid_for'}).items():
+        setattr(db_expense, key, value)
+    db_expense.paid_for = ','.join(expense.paid_for)
+    db.commit()
+    db.refresh(db_expense)
+    return ExpenseResponse(**db_expense.__dict__, paid_for=db_expense.paid_for.split(','))
 
 # 獲取結算信息
-@app.get("/settlement/{project_id}")
-async def get_settlement(project_id: int, current_user: User = Depends(get_current_user)):
-    # 獲取特定 project 的支出
-    project_expenses = [expense for expense in expenses_db if expense['project_id'] == project_id]
+@app.get("/projects/{project_id}/settlement")
+async def get_settlement(project_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    expenses = db.query(Expense).filter(Expense.project_id == project_id).all()
     
-    # 創建一個字典來跟踪每個用戶的淨欠款
     balances = defaultdict(float)
+    for expense in expenses:
+        payer = expense.paid_by
+        amount = expense.amount
+        participants = expense.paid_for.split(',')
 
-    # 計算每個用戶的淨欠款
-    for expense in project_expenses:
-        payer = expense['paidBy']
-        amount = expense['amount']
-        participants = expense['paidFor']
-
-        # 付款人增加餘額
         balances[payer] += amount
-
-        # 參與者平均分攤費用
         share = amount / len(participants)
         for participant in participants:
             balances[participant] -= share
 
-    # 將餘額分為正數（債權人）和負數（債務人）
     debtors = [(name, amount) for name, amount in balances.items() if amount < 0]
     creditors = [(name, amount) for name, amount in balances.items() if amount > 0]
 
-    # 排序債務人和債權人（按絕對值從大到小）
     debtors.sort(key=lambda x: x[1])
     creditors.sort(key=lambda x: x[1], reverse=True)
 
-    # 創建一個列表來存儲結算計劃
     settlement_plan = []
-
-    # 進行結算
     i, j = 0, 0
     while i < len(debtors) and j < len(creditors):
         debtor, debt = debtors[i]
@@ -229,63 +302,15 @@ async def get_settlement(project_id: int, current_user: User = Depends(get_curre
         "settlementPlan": settlement_plan
     }
 
-# 獲取支出摘要
-@app.get("/summary")
-async def get_summary(current_user: User = Depends(get_current_user)):
-    total_expense = sum(expense.amount for expense in expenses_db)
-    # 這裡應該計算當前用戶的淨欠款
-    your_net_debt = 0  # 暫時設為0，需要實現實際的計算邏輯
-    return {"totalExpense": total_expense, "yourNetDebt": your_net_debt}
-
 # 獲取用戶列表
-@app.get("/users")
-async def get_users(current_user: User = Depends(get_current_user)):
-    return list(users_db.keys())
+@app.get("/users/", response_model=List[str])
+async def get_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [user.username for user in users]
 
-# 獲取特定支出詳情
-@app.get("/expenses/{expense_id}")
-async def get_expense_details(expense_id: int, current_user: User = Depends(get_current_user)):
-    expense = next((expense for expense in expenses_db if expense['id'] == expense_id), None)
-    if expense is None:
-        raise HTTPException(status_code=404, detail="Expense not found")
-    return Expense(**expense)
-
-@app.put("/expenses/{expense_id}")
-async def update_expense(expense_id: int, updated_expense: Expense, current_user: User = Depends(get_current_user)):
-    for index, expense in enumerate(expenses_db):
-        if expense['id'] == expense_id:
-            updated_dict = updated_expense.dict(exclude_unset=True)
-            updated_dict['id'] = expense_id  # 保持原有的 id
-            expenses_db[index] = updated_dict
-            return {"message": "Expense updated successfully", "expense": updated_dict}
-    raise HTTPException(status_code=404, detail="Expense not found")
-
-# Project model and API endpoints
-class Project(BaseModel):
-    id: Optional[int] = None
-    name: str
-    date: date
-    description: Optional[str] = None
-
-projects_db = []
-
-@app.post("/projects")
-async def create_project(project: Project, current_user: User = Depends(get_current_user)):
-    new_project = project.dict()
-    new_project['id'] = len(projects_db) + 1
-    projects_db.append(new_project)
-    return {"message": "Project created successfully", "project": new_project}
-
-@app.get("/projects")
-async def get_projects(current_user: User = Depends(get_current_user)):
-    return projects_db
-
-@app.get("/projects/{project_id}")
-async def get_project(project_id: int, current_user: User = Depends(get_current_user)):
-    project = next((p for p in projects_db if p['id'] == project_id), None)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+# 輔助函數
+def get_user_by_username(db: Session, username: str):
+    return db.query(User).filter(User.username == username).first()
 
 if __name__ == "__main__":
     import uvicorn

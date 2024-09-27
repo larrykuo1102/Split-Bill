@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useHistory } from 'react-router-dom';
-import { getProject, getExpenses, getUsers, addExpense, updateExpense } from '../services/api';
+import { getProject, getExpenses, addExpense, updateExpense, getUsers } from '../services/api';
 
 function ProjectDetails() {
   const { id: projectId } = useParams();
@@ -19,10 +19,12 @@ function ProjectDetails() {
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
-    fetchProject();
-    fetchExpenses();
-    fetchUsers();
-  }, [projectId]);
+    if (projectId) {
+      fetchProject();
+      fetchExpenses();
+      fetchUsers();
+    }
+  }, [projectId]); // 添加 projectId 作為依賴
 
   const fetchProject = async () => {
     try {
@@ -88,7 +90,7 @@ function ProjectDetails() {
     try {
       const expenseData = { ...newExpense, project_id: projectId };
       const response = await addExpense(expenseData);
-      if (response.data.message === "Expense added successfully") {
+      if (response.data) {
         alert('支出新增成功！');
         setNewExpense({ item: '', amount: '', paidBy: '', paidFor: [], date: new Date().toISOString().split('T')[0], category: 'General' });
         fetchExpenses();

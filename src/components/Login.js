@@ -5,7 +5,7 @@ import { login, register } from '../services/api';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);  // 添加這行
   const history = useHistory();
 
   useEffect(() => {
@@ -15,31 +15,27 @@ function Login() {
     }
   }, [history]);
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      let response;
-      if (isRegistering) {
-        response = await register(username, password);
-        if (response.data.message === "User registered successfully") {
-          alert('註冊成功，請登入');
-          setIsRegistering(false);
-          return;
-        }
-      } else {
-        response = await login(username, password);
-      }
-      
-      if (response.data.access_token) {
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('username', username);
-        history.push('/projects');
-      } else {
-        alert(isRegistering ? '註冊失敗' : '登入失敗，請檢查您的用戶名和密碼。');
-      }
+      const response = await login(username, password);
+      localStorage.setItem('token', response.data.access_token);
+      history.push('/projects');
     } catch (error) {
-      console.error('Error:', error);
-      alert(error.response?.data?.detail || '發生錯誤，請稍後再試。');
+      console.error('Login error:', error);
+      alert('登錄失敗，請檢查用戶名和密碼');
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      await register(username, password);
+      alert('註冊成功，請登錄');
+      setIsRegistering(false);  // 註冊成功後切換回登錄模式
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('註冊失敗，請稍後再試');
     }
   };
 
@@ -47,37 +43,46 @@ function Login() {
     <div className="row justify-content-center">
       <div className="col-md-6 col-lg-4">
         <div className="card shadow">
-          <div className="card-body p-5">
-            <h2 className="card-title text-center mb-4 text-success">{isRegistering ? '註冊' : '登入'}</h2>
-            <form onSubmit={handleSubmit}>
+          <div className="card-body">
+            <h2 className="card-title text-center mb-4">
+              {isRegistering ? '註冊' : '登錄'}
+            </h2>
+            <form onSubmit={isRegistering ? handleRegister : handleLogin}>
               <div className="mb-3">
+                <label htmlFor="username" className="form-label">用戶名</label>
                 <input
                   type="text"
-                  className="form-control form-control-lg"
+                  className="form-control"
+                  id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="用戶名"
                   required
                 />
               </div>
               <div className="mb-3">
+                <label htmlFor="password" className="form-label">密碼</label>
                 <input
                   type="password"
-                  className="form-control form-control-lg"
+                  className="form-control"
+                  id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="密碼"
                   required
                 />
               </div>
-              <button type="submit" className="btn btn-primary btn-lg w-100">{isRegistering ? '註冊' : '登入'}</button>
+              <button type="submit" className="btn btn-primary w-100">
+                {isRegistering ? '註冊' : '登錄'}
+              </button>
             </form>
-            <button 
-              className="btn btn-link w-100 mt-3"
-              onClick={() => setIsRegistering(!isRegistering)}
-            >
-              {isRegistering ? '已有帳號？登入' : '沒有帳號？註冊'}
-            </button>
+            <p className="text-center mt-3">
+              {isRegistering ? '已有帳號？' : '還沒有帳號？'}
+              <button
+                className="btn btn-link"
+                onClick={() => setIsRegistering(!isRegistering)}
+              >
+                {isRegistering ? '登錄' : '註冊'}
+              </button>
+            </p>
           </div>
         </div>
       </div>
