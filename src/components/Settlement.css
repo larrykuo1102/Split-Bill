@@ -1,0 +1,28 @@
+.card {
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-body {
+  padding: 20px;
+}
+
+.list-group-item {
+  border-left: none;
+  border-right: none;
+  padding: 15px 20px;
+}
+
+.list-group-item:first-child {
+  border-top: none;
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+}
+
+.badge {
+  font-size: 0.9rem;
+  padding: 8px 12px;
+}
