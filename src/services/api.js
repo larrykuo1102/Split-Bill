@@ -25,13 +25,18 @@ export const login = (username, password) =>
 export const register = (username, password) => 
   api.post('/register', { username, password });
 
-export const getExpenses = () => api.get('/expenses');
+export const getExpenses = (projectId) => api.get('/expenses', { params: { project_id: projectId } });
+
 export const addExpense = (expense) => api.post('/expenses', expense);
 export const getExpenseDetails = (id) => api.get(`/expenses/${id}`);
-export const getSettlement = () => api.get('/settlement');
+export const getSettlement = (projectId) => api.get(`/settlement/${projectId}`);
 
 export const getUsers = () => api.get('/users');
 
 export const updateExpense = (id, expense) => api.put(`/expenses/${id}`, expense);
+
+export const createProject = (project) => api.post('/projects', project);
+export const getProjects = () => api.get('/projects');
+export const getProject = (id) => api.get(`/projects/${id}`);
 
 export default api;
