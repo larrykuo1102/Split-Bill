@@ -20,14 +20,13 @@ function Settlement() {
   };
 
   return (
-    <div className="card">
+    <div className="card shadow">
       <div className="card-body">
-        <h2 className="card-title mb-4">結算計劃</h2>
+        <h2 className="card-title mb-4 text-success">結算計劃</h2>
         
-        {/* 總收支情況 */}
-        <h3>總收支情況</h3>
+        <h3 className="h4 mb-3 text-success">總收支情況</h3>
         <div className="table-responsive mb-4">
-          <table className="table table-striped">
+          <table className="table table-hover">
             <thead>
               <tr>
                 <th>用戶</th>
@@ -47,15 +46,14 @@ function Settlement() {
           </table>
         </div>
 
-        {/* 詳細結算計劃 */}
-        <h3>詳細結算計劃</h3>
+        <h3 className="h4 mb-3 text-success">詳細結算計劃</h3>
         {settlement.length === 0 ? (
           <p className="card-text">目前沒有需要結算的款項。</p>
         ) : (
           <div>
             <p>為了最小化交易次數，請按照以下計劃進行結算：</p>
             <div className="table-responsive">
-              <table className="table table-striped">
+              <table className="table table-hover">
                 <thead>
                   <tr>
                     <th>付款人</th>
