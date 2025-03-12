@@ -1,17 +1,15 @@
 .project-card {
-  height: 200px;
-  cursor: pointer;
-  background-color: #f8f9fa;
+  height: auto;
+  min-height: 200px;
+  background-color: #fff;
   color: #333;
-  border-radius: 15px !important; /* 更新為更大的圓角 */
+  border-radius: 15px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.3s ease;
-  padding: 20px;
+  padding: 1.5rem;
   text-align: center;
+  transition: all 0.3s ease;
 }
 
 .project-card:hover {
@@ -21,10 +19,77 @@
 
 .project-card h3 {
   margin-bottom: 10px;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
+  color: #2c3e50;
 }
 
 .project-card p {
-  margin-bottom: 0;
-  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.project-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.join-project-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.join-project-section h3 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.join-project-form {
+  margin-top: 1rem;
+}
+
+/* RWD 調整 */
+@media (max-width: 768px) {
+  .project-card {
+    min-height: 180px;
+    padding: 1.25rem;
+  }
+
+  .project-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .join-project-section {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .project-card {
+    min-height: 160px;
+    padding: 1rem;
+  }
+
+  .project-card-actions {
+    flex-direction: column;
+  }
+
+  .join-project-section {
+    padding: 1rem;
+  }
+
+  .join-project-form .row {
+    flex-direction: column;
+  }
+
+  .join-project-form .col-md-2 {
+    margin-top: 1rem;
+  }
+
+  .join-project-form .btn {
+    width: 100%;
+  }
 }

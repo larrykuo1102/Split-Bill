@@ -1,100 +1,89 @@
 import React, { useState } from 'react';
-import { Container, Typography, TextField, Button, Paper, Link } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
-import axios from 'axios';
-import { useHistory, Link as RouterLink } from 'react-router-dom';
-
-const useStyles = makeStyles((theme) => ({
-  container: {
-    marginTop: theme.spacing(8),
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  paper: {
-    padding: theme.spacing(3),
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: '400px',
-  },
-  form: {
-    width: '100%',
-    marginTop: theme.spacing(1),
-  },
-  submit: {
-    margin: theme.spacing(3, 0, 2),
-  },
-}));
+import { useHistory, Link } from 'react-router-dom';
+import { register } from '../services/api';
+import './Register.css';
 
 function Register() {
-  const classes = useStyles();
-  const history = useHistory();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    confirmPassword: ''
+  });
   const [error, setError] = useState('');
+  const history = useHistory();
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('密碼不匹配');
+      return;
+    }
+
     try {
-      await axios.post('/register', { username, password });
+      await register(formData.username, formData.password);
+      alert('註冊成功！請登入');
       history.push('/login');
     } catch (error) {
-      console.error('Registration failed:', error);
-      setError('註冊失敗，可能用戶名已被使用');
+      setError(error.response?.data?.detail || '註冊失敗，請稍後再試');
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs" className={classes.container}>
-      <Paper className={classes.paper} elevation={3}>
-        <Typography component="h1" variant="h5">
-          註冊
-        </Typography>
-        <form className={classes.form} onSubmit={handleSubmit}>
-          <TextField
-            variant="outlined"
-            margin="normal"
-            required
-            fullWidth
-            id="username"
-            label="用戶名"
-            name="username"
-            autoComplete="username"
-            autoFocus
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <TextField
-            variant="outlined"
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="密碼"
-            type="password"
-            id="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && <Typography color="error">{error}</Typography>}
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            className={classes.submit}
-          >
-            註冊
-          </Button>
-          <Link component={RouterLink} to="/login" variant="body2">
-            {"已有帳號？登入"}
-          </Link>
+    <div className="register-container">
+      <div className="register-card">
+        <h2 className="text-center mb-4">註冊帳號</h2>
+        {error && <div className="alert alert-danger">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="username" className="form-label">用戶名</label>
+            <input
+              type="text"
+              className="form-control"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="password" className="form-label">密碼</label>
+            <input
+              type="password"
+              className="form-control"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="confirmPassword" className="form-label">確認密碼</label>
+            <input
+              type="password"
+              className="form-control"
+              id="confirmPassword"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary w-100 mb-3">註冊</button>
+          <div className="text-center">
+            <Link to="/login">已有帳號？點此登入</Link>
+          </div>
         </form>
-      </Paper>
-    </Container>
+      </div>
+    </div>
   );
 }
 

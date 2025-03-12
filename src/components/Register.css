@@ -1,0 +1,39 @@
+.register-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+}
+
+.register-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  transition: transform 0.3s ease;
+}
+
+.register-card:hover {
+  transform: translateY(-5px);
+}
+
+/* RWD 調整 */
+@media (max-width: 576px) {
+  .register-card {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .register-container {
+    padding: 10px;
+  }
+  
+  .register-card {
+    padding: 1rem;
+  }
+} 

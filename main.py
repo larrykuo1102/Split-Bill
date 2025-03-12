@@ -48,11 +48,20 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
+class UserProject(Base):
+    __tablename__ = "user_projects"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey('users.id'))
+    project_id = Column(String, ForeignKey('projects.id'))
+    joined_at = Column(String, default=lambda: datetime.now().isoformat())
+
 class Project(Base):
     __tablename__ = "projects"
     id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
     name = Column(String, index=True)
     date = Column(String)
+    invite_code = Column(String, unique=True, nullable=True)
+    created_by = Column(String, ForeignKey('users.id'))
 
 class Expense(Base):
     __tablename__ = "expenses"
@@ -64,6 +73,13 @@ class Expense(Base):
     amount = Column(Float)
     paid_by = Column(String)
     paid_for = Column(String)  # 存儲為逗號分隔的字符串
+
+class UserFriend(Base):
+    __tablename__ = "user_friends"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey('users.id'))
+    friend_id = Column(String, ForeignKey('users.id'))
+    created_at = Column(String, default=lambda: datetime.now().isoformat())
 
 Base.metadata.create_all(bind=engine)
 
@@ -92,6 +108,10 @@ class ProjectResponse(BaseModel):
     id: str
     name: str
     date: str
+    invite_code: Optional[str] = None
+    
+    class Config:
+        from_attributes = True  # 允許從 ORM 模型創建
 
 class ExpenseCreate(BaseModel):
     project_id: str
@@ -195,17 +215,42 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 # 創建項目
 @app.post("/projects/", response_model=ProjectResponse)
 async def create_project(project: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db_project = Project(**project.dict())
-    db.add(db_project)
-    db.commit()
-    db.refresh(db_project)
-    return ProjectResponse(**db_project.__dict__)
+    try:
+        db_project = Project(
+            name=project.name,
+            date=project.date,
+            created_by=current_user.id
+        )
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        
+        # 將創建者添加為項目成員
+        user_project = UserProject(user_id=current_user.id, project_id=db_project.id)
+        db.add(user_project)
+        db.commit()
+        
+        return ProjectResponse(
+            id=db_project.id,
+            name=db_project.name,
+            date=db_project.date,
+            invite_code=db_project.invite_code
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 獲取項目列表
 @app.get("/projects/", response_model=List[ProjectResponse])
 async def get_projects(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    projects = db.query(Project).all()
-    return [ProjectResponse(**project.__dict__) for project in projects]
+    # 獲取用戶參與的所有項目
+    user_projects = db.query(Project).join(
+        UserProject, Project.id == UserProject.project_id
+    ).filter(
+        UserProject.user_id == current_user.id
+    ).all()
+    
+    return [ProjectResponse(**project.__dict__) for project in user_projects]
 
 # 獲取特定項目
 @app.get("/projects/{project_id}", response_model=ProjectResponse)
@@ -276,18 +321,19 @@ async def get_settlement(project_id: str, current_user: User = Depends(get_curre
     debtors.sort(key=lambda x: x[1])
     creditors.sort(key=lambda x: x[1], reverse=True)
 
-    settlement_plan = []
+    settlements = []
     i, j = 0, 0
     while i < len(debtors) and j < len(creditors):
         debtor, debt = debtors[i]
         creditor, credit = creditors[j]
         amount = min(-debt, credit)
         
-        settlement_plan.append({
-            "from": debtor,
-            "to": creditor,
-            "amount": round(amount, 2)
-        })
+        if amount >= 0.01:  # 只添加金額大於等於0.01的結算項
+            settlements.append({
+                "payer": debtor,
+                "receiver": creditor,
+                "amount": round(amount, 2)
+            })
 
         debtors[i] = (debtor, debt + amount)
         creditors[j] = (creditor, credit - amount)
@@ -298,8 +344,8 @@ async def get_settlement(project_id: str, current_user: User = Depends(get_curre
             j += 1
 
     return {
-        "balances": dict(balances),
-        "settlementPlan": settlement_plan
+        "balances": {name: round(amount, 2) for name, amount in balances.items()},
+        "settlements": settlements
     }
 
 # 獲取用戶列表
@@ -311,6 +357,88 @@ async def get_users(current_user: User = Depends(get_current_user), db: Session 
 # 輔助函數
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
+
+# 添加創建邀請碼的 API 端點
+@app.post("/projects/{project_id}/invite")
+async def create_invite_code(project_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 檢查項目是否存在
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # 生成新的邀請碼
+    invite_code = uuid.uuid4().hex[:8]
+    
+    # 更新項目的邀請碼
+    project.invite_code = invite_code
+    db.commit()
+    
+    return {"invite_code": invite_code}
+
+# 修改加入項目的 API 端點
+@app.post("/projects/{project_id}/join")
+async def join_project(
+    project_id: str,
+    invite_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project.invite_code != invite_data.get("invite_code"):
+        raise HTTPException(status_code=403, detail="Invalid invite code")
+    
+    # 檢查用戶是否已經是項目成員
+    existing_membership = db.query(UserProject).filter(
+        UserProject.user_id == current_user.id,
+        UserProject.project_id == project_id
+    ).first()
+    
+    if existing_membership:
+        raise HTTPException(status_code=400, detail="User is already a member of this project")
+    
+    # 添加用戶到項目
+    user_project = UserProject(user_id=current_user.id, project_id=project_id)
+    db.add(user_project)
+    db.commit()
+    
+    return {"message": "Successfully joined project"}
+
+# 添加好友管理的 API 端點
+@app.post("/users/friends")
+async def add_friend(friend_data: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    friend = db.query(User).filter(User.username == friend_data["username"]).first()
+    if not friend:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if friend.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot add yourself as friend")
+    
+    existing_friendship = db.query(UserFriend).filter(
+        ((UserFriend.user_id == current_user.id) & (UserFriend.friend_id == friend.id)) |
+        ((UserFriend.user_id == friend.id) & (UserFriend.friend_id == current_user.id))
+    ).first()
+    
+    if existing_friendship:
+        raise HTTPException(status_code=400, detail="Already friends")
+    
+    friendship = UserFriend(user_id=current_user.id, friend_id=friend.id)
+    db.add(friendship)
+    db.commit()
+    
+    return {"message": "Friend added successfully"}
+
+@app.get("/users/friends")
+async def get_friends(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    friends = db.query(User).join(
+        UserFriend,
+        ((UserFriend.user_id == current_user.id) & (UserFriend.friend_id == User.id)) |
+        ((UserFriend.friend_id == current_user.id) & (UserFriend.user_id == User.id))
+    ).all()
+    
+    return [friend.username for friend in friends]
 
 if __name__ == "__main__":
     import uvicorn
